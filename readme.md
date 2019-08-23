@@ -17,13 +17,15 @@ Provide code examples and explanations of how to get the project.
 
 Coming Soon...
 
-## Tests
+## Code Notes
 
-Coming Soon...
+d1_ids.rds is a vector of Division Ids
+d1_ids.r is the code used to identify these ids
 
 ## Source Data
 
 https://sportsdatastuff.com/cfb_pbpdata
+
 
 
 ## License
