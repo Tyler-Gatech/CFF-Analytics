@@ -44,8 +44,10 @@ team_game_distinct <- data %>%
 #preview the result
 head(team_game_distinct)
 
+team_game_distinct[team_game_distinct$activeid==2440,]
+
 team_game_ct <- team_game_distinct %>%
-  group_by (activeid, activeteam) %>%
+  group_by (activeteam) %>%
   summarize (game_ct_sum = n()) %>%
   arrange(desc(game_ct_sum))
 
@@ -57,5 +59,12 @@ team_game_ct$d1 <- ifelse(team_game_ct$game_ct_sum>=8,1,0)
 
 head(team_game_ct)
 
+#converting factors to characters
+team_game_ct <- data.frame(lapply(team_game_ct, as.character), stringsAsFactors=FALSE)
+
 saveRDS(team_game_ct, "div_ids_2018.rds")
+
+team_game_ct[team_game_ct$activeid==2440,]
+
+team_game_ct[team_game_ct$activeteam=="Arkansas State Red Wolves",]
 
