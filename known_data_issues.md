@@ -1,4 +1,4 @@
-##score and active team
+## score and active team
 
 see rows 4594-4596: active team is the last team with an offensive possesion, not necessarily the scoring team. 
 
@@ -10,7 +10,7 @@ had offensive possesion the active team never switches
 playtypes that include this are ( )
 
 
-##punt distance yds not given in play desc for punt return tds, can be manually calculated. see row 4595
+## punt distance yds not given in play desc for punt return tds, can be manually calculated. see row 4595
 
-##incorrect team id
+## incorrect team id
 

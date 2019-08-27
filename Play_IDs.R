@@ -4,42 +4,14 @@ library(dplyr)
 ####Reading Data into R
 data <- read.csv("/Users/tknight01/Desktop/Github/CFF/CFBPBPData/2018_CFB_Data.csv",header=TRUE,sep=",")
 
-
-#let's see what play types are common where runyds are greater than 0 
-pos_run <- data.frame(table(data$playtype[data$runyds > 0]))
-
-#most are playtyp 5, but there are some other significant ones, including playtype 68
-pos_run
-
-#let's see what play types are common where runyds are greater than 0 
-pos_run <- data.frame(table(data$playtype[data$runyds > 0]))
-
-#most are playtyp 5, but there are some other significant ones, including playtype 68
-pos_run
-
 #let's see what play types are common where runyds are not NA (i.e. includes negative and 0 )
 any_run <- data.frame(table(data$playtype[!is.na(data$runyds)]))
 
+#view
 any_run
-#Note playtype 7, 20-1 are not in the original query of > 0 yds
-unique(data$playtype[!is.na(data$runyds)])[!unique(data$playtype[!is.na(data$runyds)]) %in% data$playtype[data$runyds > 0]]
-
-##### We'll probably want to see some of descriptions for each of these play types to correctly classify them, lets pull a couple random descriptions for each
-for (i in pos_run$Var1){
-  #subset of plays that match given playtype
-  print(as.numeric(i))
-  #print(data$playtype[sample(1:as.numeric(i),2)])
-  #print(data$playstring[sample(1:as.numeric(i),2)])
-}
-
-#looking at the 8 plays for playtype 24
-as.character(data$playstring[data$playtype==24&!is.na(data$runyds)])
-
-any_run
-play_list <- as.numeric(as.vector(any_run$Var1))
 
 #looking at a sample of each type of run plan
-for (i in 1:length(play_list)){
+for (i in 1:length(any_run$Freq)){
   #i = 20
   sample_elements <- sample(1:any_run$Freq[i], 2, replace = F)
   print(c("playtype: ",play_list[i], "volume: ", any_run$Freq[i], "run yds: ", as.character(data$runyds[!is.na(data$runyds)&data$playtype==play_list[i]])[sample_elements[1]]))
@@ -53,11 +25,11 @@ for (i in 1:length(play_list)){
 # -1(volume: 5,  tag: team_recovery_fumble, group: run)
 #  5(volume: 60585, tag: run_no_td, group: run) 
 #  7(volume: 3493, tag: sack, group: pass)
-#  9(volume: 741, tag: recoverd_fumble, group: run)
+#  9(volume: 741, tag: recovered_fumble, group: run)
 #  20(volume: 45, tag: safety, group: runpass)
-#  24(volume: 8, tag: lateral_fumble, group: runpass) look
+#  24(volume: 8, tag: lateral, group: pass) look
 #  29(volume: 558, tag: lost_fumble, group: runpass)
-#  39(volume 22, tag: fumble, group: runpass)
+#  39(volume 22, tag: fumble_return, group: runpass)
 #  68(volume: 3095, tag: run_td, group: run)
 
 #from here, we should keep 5, 68 as our clear running plays
@@ -70,21 +42,27 @@ table(check1$playtype)
 #-1 is ambiguous, 7 is a sack designed passing play, 20 can be run or pass, 24 is a pass laterl
 #39 is a fumble on a kickoff
 
-#these are the run ids if data$runyds <> NA
-run_ids_2018 <- c(5,9,29,68)
+#tcreating a vector of explicit runs
+run_ids <- c(-1,5,68)
+run_group <- c("run","run","run")
+run_desc <- c("run_fumble_recovered","run_non_td", "run_td")
 
-run_ids <- c(5,68)
-run_group <- c("run","run")
-run_desc <- c("non td run", "non td run")
 
+#these ids were ambiguous as for pass or run
 any_ids <- c(9, 20, 29, 39)
-any_group <- c("run or pass", "run or pass", "run or pass", "run or pass") 
-any_desc <-  c("fumble recovered", "safety", "fumble lost", "fumble td" )
+any_group <- c("run_or_pass", "run_or_pass", "run_or_pass", "run_or_pass") 
+any_desc <-  c("rp_fumble_recovery", "rp_safety", "rp_fumble_lost", "rp_fumble_lost_td" )
 
-saveRDS(run_ids_2018, "run_ids_2018.rds")
+#viewing a sample of the "any" group
+for(i in any_ids){
+  print(i)
+  print(" ")
+  print(sample(as.character(data$playstring[data$playtype==i]),2))
+  print(" ")
+}
 
 
-#let's look at plays with na passing yds
+#let's look at plays with non-na passing yds
 pass_table <- data.frame(table(data$playtype[(!is.na(data$qb))&(!is.na(data$pass.yds))]))
 
 
@@ -108,17 +86,15 @@ for (i in 1:length(pass_play_list)){
 # 26 intercepted
 # 29 complete pass, fumble (if pass.yds <> NA)
 # 36 pick 6
-# 63, only 1, ignore
+# 63, only 1, interception
 # 67 pass td
 #  7(volume: 3493, tag: sack, group: pass) (need to coerce to pass.yds from runyds)
 
 
-#these are the pass ids if data$pass.yds <> NA, except for 7
-pass_ids_2018 <- c(3,7,24,26,36,67)
-
-pass_ids <- c(3,7,24,26,36,67)
+#these are the explicit pass ids (added 7, from run, since its a designed pass play that results in a sack)
+pass_ids <- c(3,7,24,26,36, 63, 67)
 pass_group <- rep("pass", length(pass_ids))
-pass_desc <- c("incomplete", "sack", "complete_no_td", "interception_no_td", "interception_td", "complete_td")
+pass_desc <- c("pass_inc", "pass_sack", "pass_comp_no_td", "pass_int_no_td", "pass_int_td", "pass_int_no_td", "pass_comp_td")
 
 ids <- c(run_ids, any_ids, pass_ids)
 ids
@@ -133,59 +109,34 @@ for (i in 1:length(leftovers)){
   print(c("sample:", sample(as.character(data$playstring[data$playtype == leftovers[i]]),1)))
 }
 
-
-
-leftovers 
-
-leftovers
-
 special_ids <- c(53, 52, 32, 12, 
                  59, 60, 18, 17, 
                  34, 37, 40, 38,
-                 63, 41 )
+                 41 )
 special_group <- c("kickoff", "punt", "kickoff", "kickoff",
                    "fg","fg","fg","punt",
-                   "punt", "punt")
+                   "punt", "punt", "fg", "fg",
+                   "fg"
+                   )
 special_desc <- c("kickoff_touchback","punt_return", "kickoff_return_td", "kickoff_return",
                   "fg_good","fg_miss","fg_block","punt_block",
-                  "punt_return_td", "punt_block_td" )
+                  "punt_return_td", "punt_block_td", "fg_miss_return", "fg_block_td",
+                  "fg_miss_return_td"
+                  )
 
+ids <- c(run_ids, any_ids, pass_ids, special_ids)
+group <- c(run_group, any_group, pass_group, special_group)
+desc <- c(run_desc, any_desc, pass_desc, special_desc)
 
-data[data$playstring=="Ty Mason 0 Yd Return of Blocked Punt (Ventell Bryant Pass to Kenny Yeboah for Two-Point Conversion)",]
-data[3628:3630,]
+play_mapping_2018 <- cbind(ids, group, desc)
 
-head(data[data$playtype==36,])
+#check to make sure all are accounted for
+unique(data$playtype) %in% ids
 
-7 vs 20?
-  
+#make permanent
+saveRDS(play_mapping_2018, "play_mapping_2018.rds")
 
-i=1
-head(as.character(data$playstring[data$playtype == leftovers[i]]))
-
-sample(as.character(data$playstring[data$playtype == 40]),1)
-
-
-sum(data$playtype==leftovers[i])
-
-
-saveRDS(pass_ids_2018, "pass_ids_2018.rds")
-
-
-
-
-#Let's map all other playtypes
-
-
-c(5,9,29,68)
-c(3,7,9,24,26,29,36,67)
-
-all_play_ids <- unique(data$platype)
-all_non_pass_ids <- all_play_ids[!all_play_ids %in% pass_ids_2018]
-all_other_ids <- all_non_pass_ids[!all_non_pass_ids %in% run_ids_2018]
-
-all_other_ids
-
-(unique(data$playtype)[!unique(data$playtype) %in% pass_ids_2018]) %in% run_ids_2018
+play_mapping_2018
 
 
 
