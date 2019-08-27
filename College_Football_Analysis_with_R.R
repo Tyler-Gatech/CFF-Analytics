@@ -73,7 +73,7 @@ head(data_runs)
 hist(data_runs$runyds)
 
 #data runs over 2 yds?
-data_runs$run_gt_2 <- ifelse(data_runs$runyds >2,1,0)
+data_runs$run_gt_2 <- ifelse(data_runs$runyds >5,1,0)
 
 #team_totals, originally included activeid here, but noticed an outlier on run counts
 #arkansas state is mistakenly id'd as 2440 in one of their games
@@ -89,22 +89,25 @@ run_sum$success_gt2 <- run_sum$run_gt_2 / run_sum$count_run
 plot(run_sum$count_run, run_sum$success_gt2)
 
 #let's filter out the d1 schools, see d1_ids.R
-#note filter has to be done on team and ids since there is one duplicated id
+#note filter has to be done on team since there is one duplicated id
 run_sum_d1 <- run_sum[run_sum$activeteam %in% d1_ids_2018$activeteam,]
 
 #re running
 plot(run_sum_d1$count_run, run_sum_d1$success_gt2)
 plot(run_sum_d1$count_run, run_sum_d1$mean_run)
 
+#viewing the correlation between run count and success/mean
 cor(run_sum_d1$count_run, run_sum_d1$success_gt2)
 cor(run_sum_d1$count_run, run_sum_d1$mean_run)
 
 #let's plot the correlation of success_yds based on volume running from 0 to 20
 data_runs_d1 <- data_runs[data_runs$activeteam %in% d1_ids_2018$activeteam,]
 
+#creating a blank vector
 cor_by_yds <- as.vector(NA)
 
 #run a loop for each value from 0 to 20
+#i.e. we'll see the correlation between running plays over x (0 to 20, as a percent) and the volume of run plays for a team
 for(i in 0:20){
   data_runs_d1$run_gt_i <- ifelse(data_runs_d1$runyds >i,1,0)
   
@@ -125,13 +128,15 @@ plot(cor_by_yds)
 data_2_pt <- data[data$two.pt.result %in% (c('GOOD','FAILED')),]
 data_2_pt$good <- ifelse(data_2_pt$two.pt.result=='GOOD',1,0)
 
-#summarize by team 
+#summarize by team , note only 114 teams have attempted a 2pt, 107 d1
 data_2_pt_sum <- data_2_pt %>%
   group_by(activeteam) %>%
   summarize(good_ct = sum(good), try_ct = n(), na.rm = TRUE) %>%
   arrange(desc(good_ct))
 
 data_2_pt_sum$pct_good = data_2_pt_sum$good_ct / data_2_pt_sum$try_ct
+
+boxplot(data_2_pt_sum$pct_good ~ data_2_pt_sum$try_ct)
 
 
 # Merging left and right: Data frames have columns "id" in common
@@ -157,39 +162,85 @@ ggplot(data = summary_by_run2,  aes(quantile,pct_good)) + geom_bar(stat = "ident
 ggplot(data = summary_by_run2,  aes(quantile,tries)) + geom_bar(stat = "identity")
 
 #This leads me to think the passing teams are more successful at 2pt conversions
-
 #let's look at passing %  by 2pt success rate
-pass_table <- data.frame(table(data$playtype[(!is.na(data$qb))&(!is.na(data$pass.yds))]))
+pass_ids_2018 <- readRDS("pass_ids_2018.rds")
 
+#d1 data
+data_d1 <- data[data$activeteam %in% d1_ids_2018$activeteam,]
 
-#Examine as sample of these play types
-pass_play_list <- as.numeric(as.vector(pass_table$Var1))
+#change sack to passing yds
+head(data_d1[data_d1$playtype==7,])
+data_d1$pass.yds <- ifelse(data_d1$playtype==7,data_d1$runyds,data_d1$pass.yds)
+data_d1$runyds <- ifelse(data_d1$playtype==7,NA,data_d1$runyds)
 
-for (i in 1:length(pass_play_list)){
-  #i = 20
-  sample_elements <- sample(1:pass_table$Freq[i], min(pass_table$Freq[i],2), replace = F)
-  print(c("playtype: ",pass_play_list[i], "volume: ", pass_table$Freq[i], "pass yds: ", as.character(data$pass.yds[!is.na(data$pass.yds)&data$playtype==pass_play_list[i]])[sample_elements[1]]))
-  print(as.character(data$playstring[!is.na(data$pass.yds)&data$playtype==pass_play_list[i]])[sample_elements[1]])
-  print(c("playtype: ",pass_play_list[i], "volume: ", pass_table$Freq[i], "pass yds: ", as.character(data$pass.yds[!is.na(data$pass.yds)&data$playtype==pass_play_list[i]])[sample_elements[2]]))
-  print(as.character(data$playstring[!is.na(data$pass.yds)&data$playtype==pass_play_list[i]])[sample_elements[2]])
-}
+head(data_d1[data_d1$playtype==3,])
 
+data_d1_pass <- data_d1[(data_d1$playtype %in% pass_ids_2018 & !is.na(data_d1$pass.yds)),]
 
 #playtypes
-#3 incomplete pass
-#9  complete pass, fumble
-# 24 complete pass
-# 26 intercepted
-# 29 complete pass, fumble
-# 36 pick 6
-# 63, only 1, ignore
-# 67 pass td
-#  7(volume: 3493, tag: sack, group: pass)
+table(data_d1_pass$playtype)
+
+#a complete pass
+data_d1_pass$pass_comp <- ifelse(data_d1_pass$playtype %in% c(9,24,29,67),1,0)
+
+#pass % success (includes sacks) on third down
+data_d1_pass$ind_1st <- ifelse(data_d1_pass$down==1,1,0)
+data_d1_pass$ind_2nd <- ifelse(data_d1_pass$down==2,1,0)
+data_d1_pass$ind_3rd <- ifelse(data_d1_pass$down==3,1,0)
 
 
+#summarize by team 
+pass_sum <- data_d1_pass %>%
+  group_by(activeteam) %>%
+  summarize(pass_comp_sum = sum(pass_comp),
+            pass_att_sum = n(),
+            pass_comp_1st_sum = sum(pass_comp*ind_1st),
+            pass_att_1st_sum = sum(ind_1st),
+            pass_comp_2nd_sum = sum(pass_comp*ind_2nd),
+            pass_att_2nd_sum = sum(ind_2nd),
+            pass_comp_3rd_sum = sum(pass_comp*ind_3rd),
+            pass_att_3rd_sum = sum(ind_3rd),
+            mean_pass_yds = mean(pass.yds),
+            total_pass_yds = sum(pass.yds)) %>%
+  arrange(desc(pass_comp_sum))
 
 
+pass_sum[,]
+
+pass_sum$ratio_pass_1st <- pass_sum$pass_att_1st_sum / pass_sum$pass_att_sum
+pass_sum$ratio_pass_2nd <- pass_sum$pass_att_2nd_sum / pass_sum$pass_att_sum
+pass_sum$ratio_pass_3rd <- pass_sum$pass_att_3rd_sum / pass_sum$pass_att_sum
+
+#interesting downward trend of teams who pass the most tend to do more 
+#of their passing on 1st down , less on 2nd, even less on 3rd. this is likely due to the fact
+#that they get more 1st downs and have less pass ops. bettter to compare pass vs run ratio
+plot(pass_sum$pass_att_sum, pass_sum$ratio_pass_1st)
+plot(pass_sum$pass_att_sum, pass_sum$ratio_pass_2nd)
+plot(pass_sum$pass_att_sum, pass_sum$ratio_pass_3rd)
 
 
+#join to 2 pt data and plot
+# Merging left and right: Data frames have columns "id" in common
 
-        
+combo_pass <- sqldf("select A.*, B.* from pass_sum_3rd as A
+                       inner join combo_clean as B
+                        on A.activeteam = B.activeteam")
+
+#why is there only 107 teams? INner join on 2 pt conversions, not all teams attempted one
+combo_pass <- combo_pass %>%
+  mutate(comp_quantile = ntile(comp_pct, 8))
+
+summary_by_pass <- combo_pass %>%
+  group_by(comp_quantile) %>%
+  summarize(count = n(), pct_good = sum(good_ct) /sum(try_ct), tries = sum(try_ct))
+
+summary_by_pass
+
+ggplot(data = summary_by_pass,  aes(comp_quantile,pct_good)) + geom_bar(stat = "identity")
+ggplot(data = summary_by_pass,  aes(comp_quantile,tries)) + geom_bar(stat = "identity")
+
+cor(combo_pass$pct_good, combo_pass$comp_pct)
+
+head(combo_pass)
+  
+#        
