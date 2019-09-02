@@ -7,23 +7,81 @@ library(corrplot)
 
 
 ####Reading Data into R
+
+#####To view the summary of the data note there are a lot of factors, these are good 
+#####for modeling, but for text manipulation they can cause issues, so for now
+#####I'll convert these into strings by using stringsAsFactors = F
 data <- read.csv("/Users/tknight01/Desktop/Github/CFF/CFBPBPData/2018_CFB_Data.csv",header=TRUE,sep=",", stringsAsFactors = F)
 
-#list of teams and d1_id flag from 2018, see div_ids_2018
-div_ids_2018 <- readRDS("div_ids_2018.rds")
-#filtering to d1 ids only
-d1_ids_2018 <- div_ids_2018[div_ids_2018$d1==1,]
+#quick glance at the data
+unique(data$gameid)
+
+#first lets plot the number of games by team using dplyr and hist
+game_totals <- data %>%
+  group_by(activeteam, gameid) %>%
+  distinct(activeteam, gameid) %>%
+  group_by(activeteam) %>%
+  summarize(game_ct = n())
+
+#note the break at 0-2, these are likely d1 schools
+hist(game_totals$game_ct)
 
 ####Summary Views
 
-#####To view the size of the data
+#####What is the size of the data
 dim(data)
 
-#####To view the structure of the data
+#####What is the structure of the data
 str(data)
 
-#####To view the summary of the data
-summary(data)
+#What if we wanted to build a simple predictive model on the winner of each game? 
+#What data can we use and how does it need to be manipulated
+
+##1. The data would need to be summarized on a team or game level, let's summarize to a game level
+
+data_game_level <- data %>%
+  group_by(gameid, hometeam, home.spread, awayteam, away.spread, o.u) %>%
+  summarize (final_home_score = max(homescore) , final_away_score = max(awayscore))
+
+#home_win flag
+data_game_level$home_win <- ifelse(data_game_level$final_home_score>data_game_level$final_away_score,1,0)
+
+#calc the difference to spread
+data_game_level$diff_to_spread <- data_game_level$home.spread + 
+  data_game_level$final_home_score - data_game_level$final_away_score
+
+#home_cover_flag (cover is when you beat the spread)
+data_game_level$home_cover <- ifelse((data_game_level$final_home_score
+                                     + data_game_level$home.spread
+                                     - data_game_level$final_away_score)
+                                     >0,1,0)
+#push_flag (push is when you tie the spread)
+data_game_level$push <- ifelse((data_game_level$final_home_score
+                                      + data_game_level$home.spread
+                                      == data_game_level$final_away_score),
+                                     1,0)
+
+data_game_level$away_cover <- 1-data_game_level$home_cover-data_game_level$push
+
+#clean out the NA's on spread
+dgl_clean <- data_game_level[!is.na(data_game_level$diff_to_spread),]
+
+#What's the percent push?
+sum(dgl_clean$push)/nrow(dgl_clean)
+
+#what's the percent cover by 
+
+head(as.data.frame(dgl_clean))
+
+hist(data_game_level$diff_to_spread)
+
+data_game_level$diff_to_spread <- data_game_level$home.spread + 
+  data_game_level$final_home_score - data_game_level$final_away_score
+
+
+
+plot(-data_game_level$home.spread, (data_game_level$final_home_score - data_game_level$final_away_score))
+plot(-data_game_level$home.spread, (data_game_level$final_home_score - data_game_level$final_away_score))
 
 ##### view summary of data field
 ##### If wanted to do some analysis on two pt conversions and/or extra points goals, i may want to view what 

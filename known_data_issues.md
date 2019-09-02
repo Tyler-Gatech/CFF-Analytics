@@ -13,7 +13,15 @@ playtypes that include this are ( )
 play type 17 and 37 both seem to be punt block td, not sure of the difference. 17 playstring explicitly says td, 37 does not, but is implied based on "kick"
 play type 29 is ambiguous if a td was scored
 
-## punt distance yds not given in play desc for punt return tds, can be manually calculated. see row 4595
+## punt distance yds 
+not given in play desc for punt return tds, can be manually calculated. see row 4595
 
 ## incorrect team id
-id 2440 is used for both Nevada and Arksansas St
+id 2440 is used for both Nevada and Arksansas St (1 x) 
+
+### two pt tries and extra points need to be cleaned up
+there are instances where these are not documented explicitly (i.e. only in the description), 
+it seems to happen on tds scored from non offenseive plays, turnovers, blocks, fumbles etc. 
+
+
+## there is no date or week listed in the data
