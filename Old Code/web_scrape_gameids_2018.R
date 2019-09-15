@@ -1,5 +1,4 @@
 #Scrape ESPN for game ids for each week from 2002 to 2019
-#Using the following packages
 library(dplyr)
 library(rvest)
 
@@ -7,15 +6,14 @@ library(rvest)
 #This file will be used to determine how many weeks are in each year
 #We will then iterate for each week in each each year
 for (i in 2002:2019){
-    print(i)
-    name <- paste("week_2_year_",i,sep="") 
+    name <- paste("week_1_year_",i,sep="") 
     x <- read_html(paste0("https://www.espn.com/college-football/schedule/_/week/1/year/",i))
     assign(name, x) 
 }
 
 #Determine the max # of weeks for each year
 for(i in 2002:2019){
-max_weeks <- get(paste0("week_2_year_",i)) %>%
+max_weeks <- get(paste0("week_1_year_",i)) %>%
   html_nodes(xpath = '//*[@id="sched-container"]') %>%
   html_nodes(xpath = '//*[@class="filters display-desktop"]') %>%
   html_nodes("ul") %>%
@@ -36,15 +34,12 @@ week_vector <- as.vector(NA)
   
 }
 
-
-
 #removing week 6 for year 2016, for some reason that week is not currently working
 #try link ("https://www.espn.com/college-football/schedule/_/week/6/year/2016")
 week_vector_2016 <- week_vector_2016[!week_vector_2016==6]
 
 #removing week 16,15 in 2004,2005-2007 dropdown option exists, but no games occur
 #link https://www.espn.com/college-football/schedule/_/week/16/year/2004
-week_vector_2002 <- week_vector_2016[!week_vector_2016==12]
 week_vector_2004 <- week_vector_2004[!week_vector_2004==16]
 week_vector_2006 <- week_vector_2006[!week_vector_2006==16]
 week_vector_2007 <- week_vector_2007[!week_vector_2007==16]
@@ -55,17 +50,14 @@ week_vector_2005 <- week_vector_2005[!week_vector_2005==15]
 week_vector_2006 <- week_vector_2006[!week_vector_2006==15]
 week_vector_2007 <- week_vector_2007[!week_vector_2007==15]
 
-#Grab game ids each for week for each year from 2007-2019
+#Grab game ids each for week for each year from 2002-2019
 for(year in 2002:2019){
-print(year)
+
   #grab data for each week in that year
   for(week in get(paste0("week_vector_",year))){
-    print(week)
     name <- paste("week_",week,"_year_",year,sep="") 
-    x <- tryCatch(read_html(paste0("https://www.espn.com/college-football/schedule/_/week/",week, "/year/",year)), error = function(e) e)
+    x <- read_html(paste0("https://www.espn.com/college-football/schedule/_/week/",week, "/year/",year))
     assign(name, x) 
-    #x <- read_html(paste0("https://www.espn.com/college-football/schedule/_/week/",week, "/year/",year))
-    #assign(name, x) 
   }
   
   
@@ -85,7 +77,7 @@ colnames(gameid_df_all) <- c("game_id","date","week","year")
 
 #Originally built for just one year, so will reiterate through each year and combine at the end
 for(year in 2002:2019){
-#year = 2010
+
   #creating a blank list
   all_data <- as.list(NA)
   
@@ -94,17 +86,18 @@ for(year in 2002:2019){
     all_data[[week]] <- get(paste0("week_",week,"_year_",year))
   }
   
-  #all_data
+  
 
   #grab the weekly data from the "tbody"
   schedule_data <- as.list(NA)
     
   for(week in get(paste0("week_vector_",year))){
-    schedule_data[[week]] <- tryCatch(all_data[[week]] %>%
+    schedule_data[[week]] <- all_data[[week]] %>%
       html_nodes(xpath = '//*[@id="sched-container"]') %>%
-      html_nodes("tbody") , error = function(e) e)
+      html_nodes("tbody") 
   }
-   
+  
+  
 #Get the tbody elements out of each weekly data. That is where the gameid is located
   #Create a blank list
   game_ids <- as.list(NA)
@@ -117,12 +110,13 @@ for(year in 2002:2019){
       game_ids[[week]][n] <- as.list(NA)
       
       #does a regex look for game ids
-      game_ids[[week]][n] <- tryCatch(regmatches(
+      game_ids[[week]][n] <- regmatches(
           schedule_data[[week]][n],gregexpr(
             "[0-9]{9}",schedule_data[[week]][n])
-          ),  error = function(e) e)
+          )
     }
   }
+  
 
   
   #Date pattern for regex search
@@ -132,10 +126,10 @@ for(year in 2002:2019){
   #grabbing dates for each game
   dates_data <- as.list(NA)
   for(week in get(paste0("week_vector_",year))){
-    dates <- tryCatch(all_data[[week]] %>%
+    dates <- all_data[[week]] %>%
       html_nodes(xpath = '//*[@id="sched-container"]') %>%
-      html_nodes("h2") ,  error = function(e) e)
-    dates_data[[week]] <- tryCatch(regmatches(dates,gregexpr(date_pattern,dates)), error = function(e) e) 
+      html_nodes("h2") 
+    dates_data[[week]] <- regmatches(dates,gregexpr(date_pattern,dates)) 
   }
   
 
@@ -149,14 +143,10 @@ for(year in 2002:2019){
   
   #counting the # of unique games
   game_ids_count <- 0
-  for(week in get(paste0("week_vector_",year))){
-    for (n in 1:length(game_ids[[week]])){
-      for (z in 1:length(game_ids[[week]][[n]])){
-       game_ids_count <- game_ids_count + length(n)
-      }
-    }
+  for (i in game_ids){
+    for (n in i)
+      game_ids_count <- game_ids_count + length(n)
   }
-  
   
   #creating a blank data frame
   gameid_df <- as.data.frame(matrix(data = NA, nrow =game_ids_count , ncol = 4))
@@ -170,9 +160,8 @@ for(year in 2002:2019){
     for (n in 1:length(game_ids[[week]])){
       for (z in 1:length(game_ids[[week]][[n]])){
       rowvar <- rowvar + 1
-      gameid_df$game_id[rowvar] <- ifelse(length(game_ids[[week]][[n]][z])>0,game_ids[[week]][[n]][z],"error")
-      gameid_df$date[rowvar] <- ifelse(length(dates_data[[week]][n])>0,as.character(dates_data[[week]][n]),"error")      
-      #gameid_df$date[rowvar] <- tryCatch(as.character(dates_data[[week]][n]),  error = function(e) e)
+      gameid_df$game_id[rowvar] <- game_ids[[week]][[n]][z]
+      gameid_df$date[rowvar] <- as.character(dates_data[[week]][n])
       gameid_df$week[rowvar] <- week
       gameid_df$year[rowvar] <- year
       
@@ -181,25 +170,21 @@ for(year in 2002:2019){
     }
   }
 
-is.na(game_ids[[week]][[n]][z])
-length(game_ids[[week]][[n]][z])
-
-gameid_df[gameid_df$week==8,]
+gameid_df[gameid_df$week==7,]
   
 #combining into the main df
 gameid_df_all <- rbind(gameid_df_all, gameid_df)
 
 }
 
-for(i in 2018:2019){
+for(i in 2002:2019){
   print(head(gameid_df_all[gameid_df_all$year==i,]))
   print(tail(gameid_df_all[gameid_df_all$year==i,]))
 }
-
 #export as csv
-write.csv(gameid_df_all, paste0("all_game_ids_2002_2019",".csv"), row.names = F)
+write.csv(gameid_df, paste0("all_game_ids_2002_2019",".csv"), row.names = F)
 
 #export as R file
-saveRDS(gameid_df_all,paste0("all_game_ids_2002_2019",".rds"))
+saveRDS(gameid_df,paste0("all_game_ids_2002_2019",".rds"))
 
-getwd()
+
